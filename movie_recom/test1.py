@@ -28,3 +28,6 @@ def split_data(data, m, k, seed):
         else:
             train.append((user, item))
     return train, test
+
+
+print(222)
