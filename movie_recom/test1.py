@@ -31,7 +31,7 @@ def split_data(data, m, k, seed):
     return train, test
 
 
-def recall(train, test, n):
+def recall(train, test, N):
     """
     计算召回率
     :param train: 训练集
@@ -44,7 +44,7 @@ def recall(train, test, n):
     all = 0                                             # 对所有用户推荐的全部商品数量
     for user in train.keys():
         tu = test[user]                                 # user在测试集上喜欢的物品集合
-        rank = get_recommendation(user, n)              # 推荐给user的商品集合
+        rank = get_recommendation(user, N)              # 推荐给user的商品集合
         for item, pui in rank:
             if item in tu:
                 hit += 1
@@ -52,7 +52,7 @@ def recall(train, test, n):
     return hit / (all * 1.0)
 
 
-def precision(train, test, n):
+def precision(train, test, N):
     """
     计算准确率
     :param train: 训练集
@@ -65,15 +65,15 @@ def precision(train, test, n):
     all = 0                                             # 对所有用户推荐的全部商品数量
     for user in train.keys():
         tu = test[user]                                 # user在测试集上喜欢的物品集合
-        rank = get_recommendation(user, n)              # 推荐给user的商品集合
+        rank = get_recommendation(user, N)              # 推荐给user的商品集合
         for item, pui in rank:
             if item in tu:
                 hit += 1
-        all += n                                        # 给所有用户推荐的商品总数量
+        all += N                                        # 给所有用户推荐的商品总数量
     return hit / (all * 1.0)
 
 
-def coverage(train, test, n):
+def coverage(train, test, N):
     """
     计算覆盖率
     :param train: 训练集
@@ -87,14 +87,14 @@ def coverage(train, test, n):
     for user in train.keys():
         for item in train[user].keys():
             all_items.add(item)                         # 训练集中的用户喜欢的商品
-        rank = get_recommendation(user, n)              # 为该用户推荐的商品集
+        rank = get_recommendation(user, N)              # 为该用户推荐的商品集
         for item, pui in rank:
             recommend_items.add(item)                   # 对每一个用户推荐的商品
     return len(recommend_items) / (len(all_items) * 1.0)
 
 
-def popularity(train, test, n):
-    """
+def popularity(train, test, N):
+    """N
     计算新颖度
     用推荐列表中物品的平均流行度度量推荐结果的新颖度。
     如果推荐出的物品都很热门，说明推荐的新颖度较低，否则说明推荐结果比较新颖。
@@ -111,15 +111,46 @@ def popularity(train, test, n):
                 item_popularity[item] = 0
             item_popularity[item] += 1
     ret = 0
-    num = 0
+    n = 0
+    # 累加计算所有用户所有推荐商品的热度和
     for user in train.keys():
-        rank = get_recommendation(user, n)
+        rank = get_recommendation(user, N)
         for item, pui in rank:
             ret += math.log(1 + item_popularity[item])
-            num += 1
-    ret /= num * 1.0
+            n += 1
+    ret /= n * 1.0
     return ret
 
+
+def user_similarity(train):
+    """
+    计算
+    :param train: 训练集
+    :return:
+    """
+
+    item_users = dict()                                 # 物品到用户的倒排表，保存对每个物品产生过行为的用户列表
+    for u, items in train.items():                      # 对每个用户和对应的物品集合循环
+        for i in items.keys():                          # 每个物品的key
+            if i not in item_users:                     # 判断该物品对应的用户集合是否初始化
+                item_users[i] = set()                   # 初始化物品对应的用户集合
+            item_users[i].add(u)                        # 为倒排表中该物品添加用户
+
+    C = dict()
+    N = dict()
+    for i, users in item_users.items():
+        for u in users:
+            N[u] += 1
+            for v in users:
+                if u == v:
+                    continue
+                C[u][v] += 1
+
+    W = dict()
+    for u, related_users in C.items():
+        for v, cuv in related_users.items():
+            W[u][v] = cuv / math.sqrt(N[u] * N[v])
+    return W
 
 
 def get_recommendation(user, n):
